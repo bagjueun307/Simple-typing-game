@@ -11,144 +11,125 @@
         
         /* 상단 UI */
         #top-bar { height: 70px; display: flex; justify-content: space-around; align-items: center; background: #333; border-bottom: 4px solid #444; }
-        .timer-box { font-size: 2rem; font-weight: bold; color: #00ff00; }
-        .team-indicator { padding: 8px 20px; border-radius: 25px; font-weight: bold; font-size: 1.2rem; transition: 0.3s; }
+        .timer-box { font-size: 2.2rem; font-weight: bold; color: #00ff00; text-shadow: 0 0 10px rgba(0,255,0,0.5); }
+        .team-badge { padding: 8px 18px; border-radius: 20px; font-weight: bold; font-size: 1.1rem; border: 2px solid rgba(255,255,255,0.2); }
 
         /* 게임 보드 */
-        #game-container { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; height: calc(100vh - 160px); gap: 15px; padding: 15px; position: relative; }
-        
-        .monitor { background: #252525; border: 5px solid #444; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; transition: 0.3s; cursor: pointer; position: relative; }
+        #game-container { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; height: calc(100vh - 160px); gap: 12px; padding: 12px; position: relative; }
+        .monitor { background: #252525; border: 4px solid #444; border-radius: 12px; display: flex; flex-direction: column; cursor: pointer; transition: 0.3s; position: relative; overflow: hidden; }
         .monitor.active-turn { border-color: #00ff00; box-shadow: 0 0 20px rgba(0, 255, 0, 0.4); }
-        
-        /* 확대 시 스타일 */
-        .monitor.expanded { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; background: #1a1a1a; padding: 20px; box-sizing: border-box; }
-
-        .monitor-label { text-align: center; padding: 5px; background: #333; font-size: 0.8rem; color: #aaa; }
+        .monitor.expanded { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; background: #1a1a1a; padding: 15px; box-sizing: border-box; }
 
         /* 4x4 그리드 */
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 10px; flex-grow: 1; padding: 10px; }
-        .cell { background: #3d3d3d; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; transition: transform 0.4s, background-color 0.4s; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2); }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 8px; flex-grow: 1; padding: 10px; }
+        .cell { background: #3d3d3d; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem; transition: 0.4s; text-align: center; color: #ddd; }
 
-        /* 팀 점유 색상 */
-        .occupied-1 { background-color: #e74c3c !important; transform: rotateY(360deg); } /* 레드 */
-        .occupied-2 { background-color: #3498db !important; transform: rotateY(360deg); } /* 블루 */
-        .occupied-3 { background-color: #f1c40f !important; color: #000 !important; transform: rotateY(360deg); } /* 옐로 */
-        .occupied-4 { background-color: #9b59b6 !important; transform: rotateY(360deg); } /* 퍼플 */
+        /* 팀별 점유 색상 */
+        .t1 { background-color: #e74c3c !important; color: white !important; }
+        .t2 { background-color: #3498db !important; color: white !important; }
+        .t3 { background-color: #f1c40f !important; color: black !important; }
+        .t4 { background-color: #9b59b6 !important; color: white !important; }
 
         /* 하단 입력창 */
-        #input-area { height: 90px; display: flex; justify-content: center; align-items: center; background: #222; border-top: 2px solid #333; }
-        #word-input { width: 400px; padding: 15px; font-size: 1.5rem; border-radius: 10px; border: none; text-align: center; background: #000; color: #00ff00; border: 2px solid #444; }
-        #word-input:focus { border-color: #00ff00; outline: none; }
+        #input-area { height: 90px; display: flex; justify-content: center; align-items: center; background: #222; }
+        #word-input { width: 400px; padding: 15px; font-size: 1.5rem; border-radius: 10px; border: 2px solid #444; background: #000; color: #fff; text-align: center; outline: none; }
+        #word-input:focus { border-color: #00ff00; }
     </style>
 </head>
 <body>
 
 <div id="top-bar">
-    <div>현재 차례: <span id="current-team-ui" class="team-indicator">TEAM 1</span></div>
-    <div class="timer-box" id="timer">10</div>
-    <div id="score-board">T1:<span id="s1">0</span> | T2:<span id="s2">0</span> | T3:<span id="s3">0</span> | T4:<span id="s4">0</span></div>
+    <div>차례: <span id="team-ui" class="team-badge">연결 중...</span></div>
+    <div class="timer-box" id="timer">--</div>
+    <div id="score">T1:<span id="s1">0</span> T2:<span id="s2">0</span> T3:<span id="s3">0</span> T4:<span id="s4">0</span></div>
 </div>
 
 <div id="game-container">
-    <div class="monitor" id="m1" onclick="toggleExpand('m1')"><div class="monitor-label">MONITOR 1</div><div class="grid" id="grid1"></div></div>
-    <div class="monitor" id="m2" onclick="toggleExpand('m2')"><div class="monitor-label">MONITOR 2</div><div class="grid" id="grid2"></div></div>
-    <div class="monitor" id="m3" onclick="toggleExpand('m3')"><div class="monitor-label">MONITOR 3</div><div class="grid" id="grid3"></div></div>
-    <div class="monitor" id="m4" onclick="toggleExpand('m4')"><div class="monitor-label">MONITOR 4</div><div class="grid" id="grid4"></div></div>
+    <div class="monitor" id="m1" onclick="toggleExpand('m1')"><div class="grid" id="grid1"></div></div>
+    <div class="monitor" id="m2" onclick="toggleExpand('m2')"><div class="grid" id="grid2"></div></div>
+    <div class="monitor" id="m3" onclick="toggleExpand('m3')"><div class="grid" id="grid3"></div></div>
+    <div class="monitor" id="m4" onclick="toggleExpand('m4')"><div class="grid" id="grid4"></div></div>
 </div>
 
 <div id="input-area">
-    <input type="text" id="word-input" placeholder="자기 팀 차례에 입력!" autocomplete="off">
+    <input type="text" id="word-input" placeholder="자기 팀 차례일 때 입력!" autocomplete="off">
 </div>
 
 <script>
-    // 1. Firebase 구성 (콘솔에서 확인한 정보를 넣으세요)
+    // --- [중요] 여기에 파이어베이스 정보를 정확히 넣어주세요 ---
     const firebaseConfig = {
-        apiKey: "YOUR_API_KEY", // 실제 API Key를 넣어야 합니다.
+        apiKey: "여기에_본인의_API_KEY_입력",
         authDomain: "simple-typing-game-cfe6f.firebaseapp.com",
         databaseURL: "https://simple-typing-game-cfe6f-default-rtdb.firebaseio.com/",
         projectId: "simple-typing-game-cfe6f",
         storageBucket: "simple-typing-game-cfe6f.appspot.com",
-        appId: "YOUR_APP_ID" // 실제 App ID를 넣어야 합니다.
+        appId: "여기에_본인의_APP_ID_입력"
     };
+    // --------------------------------------------------
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 공통 단어 리스트
-    const words = ["사과", "바나나", "포도", "수박", "기차", "하늘", "바다", "농구", "축구", "컴퓨터", "우주", "별빛", "태양", "구름", "노래", "피아노"];
+    const masterWords = ["사과", "바나나", "포도", "수박", "기차", "하늘", "바다", "농구", "축구", "컴퓨터", "우주", "별빛", "태양", "구름", "노래", "피아노"];
     let expandedId = null;
-    let currentTeam = 1;
+    let localCurrentTeam = 1;
 
-    // 2. 데이터베이스 초기화 (데이터가 없을 때만 실행)
-    db.ref('gameStatus').once('value', (snap) => {
+    // 1. 초기 데이터 구조 생성
+    db.ref('game').once('value', (snap) => {
         if (!snap.exists()) {
-            db.ref('gameStatus').set({ currentTeam: 1, timeLeft: 10 });
-            let initialBoard = {};
-            words.forEach(w => initialBoard[w] = 0);
-            db.ref('board').set(initialBoard);
+            let initialBoard = {}; masterWords.forEach(w => initialBoard[w] = 0);
+            db.ref('game').set({
+                status: { currentTeam: 1, timeLeft: 10 },
+                board: initialBoard
+            });
         }
     });
 
-    // 3. 실시간 리스너: 보드 상태 업데이트
-    db.ref('board').on('value', (snapshot) => {
-        const boardData = snapshot.val();
-        if (boardData) renderAllGrids(boardData);
-    });
+    // 2. 데이터 실시간 수신 및 UI 업데이트
+    db.ref('game').on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
 
-    // 4. 실시간 리스너: 턴 및 타이머 업데이트
-    db.ref('gameStatus').on('value', (snapshot) => {
-        const status = snapshot.val();
-        if (status) {
-            currentTeam = status.currentTeam;
-            document.getElementById('timer').innerText = status.timeLeft;
-            const ui = document.getElementById('current-team-ui');
-            ui.innerText = `TEAM ${currentTeam}`;
-            ui.style.backgroundColor = getTeamColor(currentTeam);
-            
-            // 현재 팀 모니터 강조
-            document.querySelectorAll('.monitor').forEach(m => m.classList.remove('active-turn'));
-            document.getElementById(`m${currentTeam}`).classList.add('active-turn');
-        }
-    });
+        localCurrentTeam = data.status.currentTeam;
+        document.getElementById('timer').innerText = data.status.timeLeft;
+        const ui = document.getElementById('team-ui');
+        ui.innerText = `TEAM ${localCurrentTeam}`;
+        ui.className = `team-badge t${localCurrentTeam}`;
 
-    function renderAllGrids(boardData) {
+        document.querySelectorAll('.monitor').forEach(m => m.classList.remove('active-turn'));
+        document.getElementById(`m${localCurrentTeam}`).classList.add('active-turn');
+
         const scores = {1:0, 2:0, 3:0, 4:0};
         for (let m = 1; m <= 4; m++) {
             const grid = document.getElementById(`grid${m}`);
             grid.innerHTML = '';
-            words.forEach(word => {
-                const teamNum = boardData[word];
+            masterWords.forEach(word => {
+                const owner = data.board[word];
                 const cell = document.createElement('div');
-                cell.className = 'cell';
-                if (teamNum > 0) {
-                    cell.classList.add(`occupied-${teamNum}`);
-                    if (m === 1) scores[teamNum]++; // 중복 계산 방지 위해 한 번만 체크
-                }
+                cell.className = 'cell' + (owner > 0 ? ` t${owner}` : '');
                 cell.innerText = word;
                 grid.appendChild(cell);
+                if (m === 1 && owner > 0) scores[owner]++;
             });
         }
-        // 점수 업데이트
         for(let i=1; i<=4; i++) document.getElementById(`s${i}`).innerText = scores[i];
-    }
+    });
 
-    // 5. 단어 입력 로직
-    const inputField = document.getElementById('word-input');
-    inputField.addEventListener('keypress', (e) => {
+    // 3. 단어 입력 로직
+    document.getElementById('word-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            const val = inputField.value.trim();
-            if (words.includes(val)) {
-                // DB에 해당 단어를 현재 팀의 번호로 저장
-                db.ref(`board/${val}`).set(currentTeam);
+            const val = e.target.value.trim();
+            if (masterWords.includes(val)) {
+                // 단어 입력 시 DB 업데이트
+                db.ref(`game/board/${val}`).set(localCurrentTeam);
             }
-            inputField.value = '';
+            e.target.value = '';
         }
     });
 
-    // 6. 타이머 서버 로직 (가장 먼저 접속한 사람이나 관리자 기기에서 실행)
-    // 실제로는 한 명만 실행해야 하지만, transaction을 사용하면 여러 명이 실행해도 안전합니다.
+    // 4. 전역 타이머 관리 (트랜잭션)
     setInterval(() => {
-        db.ref('gameStatus').transaction((current) => {
+        db.ref('game/status').transaction((current) => {
             if (current) {
                 if (current.timeLeft <= 1) {
                     current.timeLeft = 10;
@@ -161,6 +142,7 @@
         });
     }, 1000);
 
+    // 5. 모니터 확대/축소
     function toggleExpand(id) {
         const el = document.getElementById(id);
         if (expandedId === id) { el.classList.remove('expanded'); expandedId = null; }
@@ -168,11 +150,6 @@
             if (expandedId) document.getElementById(expandedId).classList.remove('expanded');
             el.classList.add('expanded'); expandedId = id;
         }
-    }
-
-    function getTeamColor(num) {
-        const colors = ["", "#e74c3c", "#3498db", "#f1c40f", "#9b59b6"];
-        return colors[num];
     }
 </script>
 </body>
