@@ -31,16 +31,14 @@
 
         #input-area { height: 100px; display: flex; justify-content: center; align-items: center; gap: 20px; background: rgba(0,0,0,0.5); z-index: 100; position: relative; }
         #word-input { width: 350px; padding: 15px; font-size: 1.6rem; border-radius: 10px; border: 4px solid #444; background: #000; color: #fff; text-align: center; outline: none; }
-        #word-input:disabled { opacity: 0.5; cursor: not-allowed; }
+        #word-input:disabled { opacity: 0.3; cursor: not-allowed; }
         
-        /* 시작 버튼 오버레이 */
-        .start-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 101; }
+        .start-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 101; }
         .expanded .start-overlay { display: flex; }
-        /* 게임 시작 시 버튼 숨기기 */
         body.game-ing .start-overlay { display: none !important; }
 
-        .start-btn { padding: 20px 40px; font-size: 1.5rem; border-radius: 15px; border: none; font-weight: bold; cursor: pointer; background: var(--gold); color: black; box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4); }
-        .start-btn:hover { transform: scale(1.1); }
+        .start-btn { padding: 25px 50px; font-size: 1.8rem; border-radius: 15px; border: none; font-weight: bold; cursor: pointer; background: var(--gold); color: black; box-shadow: 0 5px 25px rgba(255, 215, 0, 0.5); transition: 0.2s; }
+        .start-btn:hover { transform: scale(1.1); background: #fff; }
     </style>
 </head>
 <body>
@@ -52,26 +50,14 @@
 </div>
 
 <div id="game-container">
-    <div class="monitor" id="m1" onclick="expandMonitor('m1')">
-        <div class="start-overlay"><button class="start-btn" onclick="requestStart(event)">게임 시작하기</button></div>
-        <div class="grid" id="grid1"></div>
-    </div>
-    <div class="monitor" id="m2" onclick="expandMonitor('m2')">
-        <div class="start-overlay"><button class="start-btn" onclick="requestStart(event)">게임 시작하기</button></div>
-        <div class="grid" id="grid2"></div>
-    </div>
-    <div class="monitor" id="m3" onclick="expandMonitor('m3')">
-        <div class="start-overlay"><button class="start-btn" onclick="requestStart(event)">게임 시작하기</button></div>
-        <div class="grid" id="grid3"></div>
-    </div>
-    <div class="monitor" id="m4" onclick="expandMonitor('m4')">
-        <div class="start-overlay"><button class="start-btn" onclick="requestStart(event)">게임 시작하기</button></div>
-        <div class="grid" id="grid4"></div>
-    </div>
+    <div class="monitor" id="m1" onclick="expandMonitor('m1')"><div class="start-overlay"><button class="start-btn" onclick="requestStart(event)">GAME START</button></div><div class="grid" id="grid1"></div></div>
+    <div class="monitor" id="m2" onclick="expandMonitor('m2')"><div class="start-overlay"><button class="start-btn" onclick="requestStart(event)">GAME START</button></div><div class="grid" id="grid2"></div></div>
+    <div class="monitor" id="m3" onclick="expandMonitor('m3')"><div class="start-overlay"><button class="start-btn" onclick="requestStart(event)">GAME START</button></div><div class="grid" id="grid3"></div></div>
+    <div class="monitor" id="m4" onclick="expandMonitor('m4')"><div class="start-overlay"><button class="start-btn" onclick="requestStart(event)">GAME START</button></div><div class="grid" id="grid4"></div></div>
 </div>
 
 <div id="input-area">
-    <input type="text" id="word-input" placeholder="확대 후 시작 버튼 클릭!" disabled autocomplete="off">
+    <input type="text" id="word-input" placeholder="확대한 뒤 시작을 누르세요" disabled autocomplete="off">
 </div>
 
 <script>
@@ -88,50 +74,65 @@
     const db = firebase.database();
     const words = ["사과", "바나나", "포도", "수박", "기차", "하늘", "바다", "농구", "축구", "컴퓨터", "우주", "별빛", "태양", "구름", "노래", "피아노"];
     
-    let isGameOver = false;
     let roundWinner = 0;
+    let localIsGameOver = false;
 
+    // 모니터 확대
     function expandMonitor(id) {
         const m = document.getElementById(id);
-        if (m.classList.contains('expanded')) {
-            m.classList.remove('expanded');
-        } else {
+        if (m.classList.contains('expanded')) m.classList.remove('expanded');
+        else {
             document.querySelectorAll('.monitor').forEach(el => el.classList.remove('expanded'));
             m.classList.add('expanded');
         }
     }
 
+    // 1. 초기 데이터베이스 세팅 (없을 경우만)
+    db.ref('game/status').once('value', snap => {
+        if (!snap.exists()) {
+            let initialBoard = {};
+            words.forEach(w => initialBoard[w] = { owner: 0, fixed: false });
+            db.ref('game').set({
+                status: { isStarted: false, currentTeam: 1, timeLeft: 30 },
+                board: initialBoard
+            });
+        }
+    });
+
+    // 2. 실시간 감시
     db.ref('game').on('value', (snap) => {
         const data = snap.val();
         if (!data) return;
 
         const { currentTeam, timeLeft, isStarted } = data.status;
         
-        // 버튼 및 입력창 상태 제어
+        // UI 제어
         if (isStarted) {
             document.body.classList.add('game-ing');
             document.getElementById('timer').innerText = timeLeft;
             document.getElementById('word-input').disabled = (timeLeft <= 0);
-            document.getElementById('word-input').placeholder = (timeLeft > 0) ? "단어를 입력하세요!" : "라운드 종료!";
             if(timeLeft > 0) document.getElementById('word-input').focus();
+            
+            // 핵심: 진행 중이다가 0초가 되는 순간 한 번만 계산
+            if (timeLeft === 0 && !localIsGameOver) {
+                localIsGameOver = true;
+                calculateWinner(data.board);
+            }
         } else {
             document.body.classList.remove('game-ing');
             document.getElementById('timer').innerText = "READY";
             document.getElementById('word-input').disabled = true;
-            document.getElementById('word-input').placeholder = "확대 후 시작 버튼 클릭!";
+            localIsGameOver = false; // 리셋
         }
 
-        if (isStarted && timeLeft <= 0 && !isGameOver) {
-            isGameOver = true;
-            calculateWinner(data.board);
-        } else if (timeLeft > 0) isGameOver = false;
-
+        // 턴 강조
         document.body.className = isStarted ? `turn-${currentTeam} game-ing` : "";
         document.querySelectorAll('.monitor').forEach(m => {
             m.classList.remove('active-1', 'active-2');
-            if(isStarted && !isGameOver) m.classList.add(`active-${currentTeam}`);
+            if(isStarted && timeLeft > 0) m.classList.add(`active-${currentTeam}`);
         });
 
+        // 렌더링
         let p1Count = 0, p2Count = 0;
         for (let m = 1; m <= 4; m++) {
             const grid = document.getElementById(`grid${m}`);
@@ -139,29 +140,28 @@
             words.forEach(word => {
                 const cellData = data.board[word];
                 const cell = document.createElement('div');
-                cell.className = 'cell';
-                if (cellData.owner > 0) cell.classList.add(`t${cellData.owner}`);
-                if (cellData.fixed) {
-                    cell.classList.add('fixed');
-                    if (m === 1) cellData.owner === 1 ? p1Count++ : p2Count++;
-                }
+                cell.className = 'cell' + (cellData.owner > 0 ? ` t${cellData.owner}` : '') + (cellData.fixed ? ' fixed' : '');
                 cell.innerText = word;
+                
+                // 영구 점유 클릭 이벤트
                 cell.onclick = (e) => {
                     e.stopPropagation();
-                    if (isGameOver && roundWinner > 0 && !cellData.fixed) {
+                    if (localIsGameOver && roundWinner > 0 && !cellData.fixed) {
                         db.ref(`game/board/${word}`).update({ owner: roundWinner, fixed: true });
                         db.ref('game/status').update({ isStarted: false, timeLeft: 30 });
-                        alert(`${word} 영구 점유!`);
+                        alert(`${word} 영구 점유 완료!`);
                         roundWinner = 0;
                     }
                 };
                 grid.appendChild(cell);
+                if (cellData.fixed && m === 1) cellData.owner === 1 ? p1Count++ : p2Count++;
             });
         }
         document.getElementById('p1').innerText = p1Count;
         document.getElementById('p2').innerText = p2Count;
     });
 
+    // 3. 게임 시작 요청
     function requestStart(e) {
         e.stopPropagation();
         db.ref('game/board').once('value', (snap) => {
@@ -174,6 +174,7 @@
         });
     }
 
+    // 4. 승자 계산
     function calculateWinner(board) {
         let r = 0, b = 0;
         words.forEach(w => {
@@ -181,16 +182,19 @@
             else if (board[w].owner === 2) b++;
         });
         roundWinner = r > b ? 1 : (b > r ? 2 : 0);
-        alert(roundWinner === 0 ? "무승부!" : `${roundWinner === 1 ? 'RED' : 'BLUE'} 승리! 영구 땅을 클릭하세요.`);
+        setTimeout(() => {
+            alert(roundWinner === 0 ? "라운드 종료: 무승부!" : `라운드 종료: ${roundWinner === 1 ? 'RED' : 'BLUE'} 승리!\n영구 점유할 칸을 하나 선택하세요.`);
+        }, 100);
     }
 
+    // 5. 단어 입력
     document.getElementById('word-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             const val = e.target.value.trim();
             if (words.includes(val)) {
                 db.ref('game').once('value', (snap) => {
                     const data = snap.val();
-                    if (!data.board[val].fixed) {
+                    if (data.status.isStarted && data.status.timeLeft > 0 && !data.board[val].fixed) {
                         db.ref(`game/board/${val}`).update({ owner: data.status.currentTeam });
                     }
                 });
@@ -199,6 +203,7 @@
         }
     });
 
+    // 6. 타이머 엔진
     setInterval(() => {
         db.ref('game/status').transaction((s) => {
             if (s && s.isStarted && s.timeLeft > 0) {
