@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>영구 땅따먹기 타자 게임</title>
+    <title>실시간 영구 땅따먹기</title>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <style>
@@ -12,55 +12,63 @@
         body.turn-1 { background-color: #2a1515; }
         body.turn-2 { background-color: #151a2a; }
 
-        /* 상단 점수판 - 영구 땅 개수 표시 */
         #top-bar { height: 90px; display: flex; justify-content: space-around; align-items: center; background: rgba(0,0,0,0.8); border-bottom: 3px solid #333; }
-        .timer-display { font-size: 3rem; font-weight: 900; }
-        .permanent-score { font-size: 1.2rem; font-weight: bold; text-align: center; }
-        .p-count { font-size: 2rem; display: block; }
-        
-        #game-container { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; height: calc(100vh - 190px); gap: 15px; padding: 15px; }
-        .monitor { background: #1e1e1e; border: 5px solid #333; border-radius: 15px; display: flex; flex-direction: column; overflow: hidden; position: relative; transition: 0.3s; }
+        .timer-display { font-size: 3rem; font-weight: 900; color: #fff; }
+        .p-count { font-size: 2rem; display: block; font-weight: bold; }
+
+        #game-container { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; height: calc(100vh - 190px); gap: 15px; padding: 15px; position: relative; }
+        .monitor { background: #1e1e1e; border: 5px solid #333; border-radius: 15px; display: flex; flex-direction: column; overflow: hidden; position: relative; transition: 0.5s; cursor: pointer; }
         .monitor.active-1 { border-color: var(--red); box-shadow: 0 0 20px rgba(255,77,77,0.3); }
         .monitor.active-2 { border-color: var(--blue); box-shadow: 0 0 20px rgba(77,148,255,0.3); }
-
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px; aspect-ratio: 1/1; margin: auto; max-height: 90%; }
-        .cell { background: #2a2a2a; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem; aspect-ratio: 1/1; transition: 0.3s; color: #555; position: relative; cursor: default; }
         
-        /* 팀 색상 */
+        /* 확대 모드 */
+        .monitor.expanded { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; background: var(--bg); border: none; }
+
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 20px; aspect-ratio: 1/1; margin: auto; max-height: 85vh; width: 500px; }
+        .cell { background: #2a2a2a; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; aspect-ratio: 1/1; transition: 0.3s; color: #555; position: relative; }
         .t1 { background-color: var(--red) !important; color: white !important; }
         .t2 { background-color: var(--blue) !important; color: white !important; }
-        
-        /* 영구 점유 효과 */
-        .fixed { border: 3px solid var(--gold) !important; box-shadow: 0 0 15px var(--gold); z-index: 2; opacity: 1 !important; }
-        .fixed::after { content: "👑"; position: absolute; top: -10px; right: -5px; font-size: 12px; }
+        .fixed { border: 4px solid var(--gold) !important; box-shadow: 0 0 15px var(--gold); z-index: 2; }
 
-        #input-area { height: 100px; display: flex; justify-content: center; align-items: center; gap: 30px; background: rgba(0,0,0,0.5); }
-        #word-input { width: 350px; padding: 15px; font-size: 1.5rem; border-radius: 10px; border: 3px solid #444; background: #000; color: #fff; text-align: center; outline: none; }
-        #msg { position: absolute; bottom: 110px; color: var(--gold); font-weight: bold; font-size: 1.2rem; display: none; text-shadow: 0 0 10px black; }
-        button { padding: 10px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; background: #444; color: white; }
+        #input-area { height: 100px; display: flex; justify-content: center; align-items: center; gap: 20px; background: rgba(0,0,0,0.5); }
+        #word-input { width: 300px; padding: 15px; font-size: 1.5rem; border-radius: 10px; border: 3px solid #444; background: #000; color: #fff; text-align: center; outline: none; }
+        
+        .start-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 101; display: none; }
+        .expanded .start-overlay { display: block; }
+
+        button { padding: 15px 30px; font-size: 1.2rem; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--gold); color: black; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        button:hover { transform: scale(1.05); }
     </style>
 </head>
 <body>
 
 <div id="top-bar">
-    <div class="permanent-score" style="color:var(--red)">RED 영구 땅<span class="p-count" id="p1">0</span></div>
-    <div class="timer-display" id="timer">30</div>
-    <div class="permanent-score" style="color:var(--blue)">BLUE 영구 땅<span class="p-count" id="p2">0</span></div>
+    <div style="color:var(--red); text-align: center;">RED 영구 땅<span class="p-count" id="p1">0</span></div>
+    <div class="timer-display" id="timer">READY</div>
+    <div style="color:var(--blue); text-align: center;">BLUE 영구 땅<span class="p-count" id="p2">0</span></div>
 </div>
 
 <div id="game-container">
-    <div class="monitor" id="m1"><div class="grid" id="grid1"></div></div>
-    <div class="monitor" id="m2"><div class="grid" id="grid2"></div></div>
-    <div class="monitor" id="m3"><div class="grid" id="grid3"></div></div>
-    <div class="monitor" id="m4"><div class="grid" id="grid4"></div></div>
+    <div class="monitor" id="m1" onclick="expandMonitor('m1')">
+        <div class="start-overlay"><button onclick="requestStart(event)">게임 시작하기</button></div>
+        <div class="grid" id="grid1"></div>
+    </div>
+    <div class="monitor" id="m2" onclick="expandMonitor('m2')">
+        <div class="start-overlay"><button onclick="requestStart(event)">게임 시작하기</button></div>
+        <div class="grid" id="grid2"></div>
+    </div>
+    <div class="monitor" id="m3" onclick="expandMonitor('m3')">
+        <div class="start-overlay"><button onclick="requestStart(event)">게임 시작하기</button></div>
+        <div class="grid" id="grid3"></div>
+    </div>
+    <div class="monitor" id="m4" onclick="expandMonitor('m4')">
+        <div class="start-overlay"><button onclick="requestStart(event)">게임 시작하기</button></div>
+        <div class="grid" id="grid4"></div>
+    </div>
 </div>
 
-<div id="msg">승리팀은 영구히 가질 칸을 하나 클릭하세요!</div>
-
 <div id="input-area">
-    <input type="text" id="word-input" placeholder="단어 입력..." autocomplete="off">
-    <button onclick="nextRound()">다음 라운드 시작</button>
-    <button onclick="fullReset()" style="background:#222; font-size: 0.7rem;">전체 초기화</button>
+    <input type="text" id="word-input" placeholder="확대 후 시작버튼을 누르세요" disabled autocomplete="off">
 </div>
 
 <script>
@@ -79,30 +87,49 @@
     
     let isGameOver = false;
     let roundWinner = 0;
+    let timerInterval = null;
 
-    // 데이터 동기화 및 렌더링
+    // 모니터 확대 함수
+    function expandMonitor(id) {
+        const m = document.getElementById(id);
+        if (m.classList.contains('expanded')) {
+            m.classList.remove('expanded');
+        } else {
+            document.querySelectorAll('.monitor').forEach(el => el.classList.remove('expanded'));
+            m.classList.add('expanded');
+        }
+    }
+
+    // 동기화 및 렌더링
     db.ref('game').on('value', (snap) => {
         const data = snap.val();
         if (!data) return;
 
-        const { currentTeam, timeLeft } = data.status;
-        document.getElementById('timer').innerText = timeLeft;
+        const { currentTeam, timeLeft, isStarted } = data.status;
+        
+        // 타이머 표시
+        if (!isStarted) {
+            document.getElementById('timer').innerText = "READY";
+            document.getElementById('word-input').disabled = true;
+        } else {
+            document.getElementById('timer').innerText = timeLeft;
+            document.getElementById('word-input').disabled = (timeLeft <= 0);
+        }
 
-        // 라운드 종료 로직
-        if (timeLeft <= 0 && !isGameOver) {
+        // 라운드 종료 처리
+        if (isStarted && timeLeft <= 0 && !isGameOver) {
             isGameOver = true;
-            calculateRoundWinner(data.board);
+            calculateWinner(data.board);
         } else if (timeLeft > 0) isGameOver = false;
 
-        // 배경 및 UI
-        document.body.className = `turn-${currentTeam}`;
-        document.getElementById('msg').style.display = isGameOver && roundWinner > 0 ? "block" : "none";
+        // UI 업데이트
+        document.body.className = isStarted ? `turn-${currentTeam}` : "";
         document.querySelectorAll('.monitor').forEach(m => {
             m.classList.remove('active-1', 'active-2');
-            if(!isGameOver) m.classList.add(`active-${currentTeam}`);
+            if(isStarted && !isGameOver) m.classList.add(`active-${currentTeam}`);
         });
 
-        // 그리드 렌더링 및 영구 땅 카운트
+        // 그리드 렌더링
         let p1Count = 0, p2Count = 0;
         for (let m = 1; m <= 4; m++) {
             const grid = document.getElementById(`grid${m}`);
@@ -118,11 +145,13 @@
                 }
                 cell.innerText = word;
 
-                // 영구 땅 선택 이벤트
-                cell.onclick = () => {
+                // 승리팀의 영구 땅 선택
+                cell.onclick = (e) => {
+                    e.stopPropagation();
                     if (isGameOver && roundWinner > 0 && !cellData.fixed) {
                         db.ref(`game/board/${word}`).update({ owner: roundWinner, fixed: true });
-                        alert(`${word} 땅을 영구 점유했습니다!`);
+                        db.ref('game/status').update({ isStarted: false, timeLeft: 30 });
+                        alert(`${word} 영구 점유! 다음 라운드를 위해 '시작'을 누르세요.`);
                         roundWinner = 0;
                     }
                 };
@@ -133,28 +162,39 @@
         document.getElementById('p2').innerText = p2Count;
     });
 
-    // 라운드 승자 계산 (단순 타자 점유 개수)
-    function calculateRoundWinner(board) {
+    // 게임 시작 요청 (모두의 타이머가 동시에 돌아감)
+    function requestStart(e) {
+        e.stopPropagation();
+        db.ref('game/board').once('value', (snap) => {
+            const board = snap.val();
+            words.forEach(w => { if (!board[w].fixed) board[w].owner = 0; });
+            db.ref('game').update({
+                status: { isStarted: true, currentTeam: 1, timeLeft: 30 },
+                board: board
+            });
+        });
+    }
+
+    // 승자 계산
+    function calculateWinner(board) {
         let r = 0, b = 0;
         words.forEach(w => {
             if (board[w].owner === 1) r++;
             else if (board[w].owner === 2) b++;
         });
         roundWinner = r > b ? 1 : (b > r ? 2 : 0);
-        if (roundWinner === 0) alert("무승부! 영구 땅 선택권이 없습니다.");
-        else alert(`라운드 종료! ${roundWinner === 1 ? 'RED' : 'BLUE'} 승리! 땅을 하나 고르세요.`);
+        alert(roundWinner === 0 ? "무승부!" : `${roundWinner === 1 ? 'RED' : 'BLUE'} 승리! 영구 땅을 클릭하세요.`);
     }
 
     // 단어 입력
     document.getElementById('word-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !isGameOver) {
+        if (e.key === 'Enter') {
             const val = e.target.value.trim();
             if (words.includes(val)) {
-                db.ref(`game/board/${val}`).once('value', (s) => {
-                    if (!s.val().fixed) {
-                        db.ref('game/status/currentTeam').once('value', (t) => {
-                            db.ref(`game/board/${val}`).update({ owner: t.val() });
-                        });
+                db.ref('game').once('value', (snap) => {
+                    const data = snap.val();
+                    if (!data.board[val].fixed) {
+                        db.ref(`game/board/${val}`).update({ owner: data.status.currentTeam });
                     }
                 });
             }
@@ -162,10 +202,10 @@
         }
     });
 
-    // 10초 교대 타이머 로직
+    // 타이머 엔진 (누군가 시작을 눌렀을 때만 작동)
     setInterval(() => {
         db.ref('game/status').transaction((s) => {
-            if (s && s.timeLeft > 0) {
+            if (s && s.isStarted && s.timeLeft > 0) {
                 s.timeLeft--;
                 if (s.timeLeft % 10 === 0 && s.timeLeft !== 0) {
                     s.currentTeam = s.currentTeam === 1 ? 2 : 1;
@@ -174,24 +214,6 @@
             return s;
         });
     }, 1000);
-
-    // 다음 라운드 (고정 땅 유지)
-    function nextRound() {
-        db.ref('game/board').once('value', (snap) => {
-            const board = snap.val();
-            words.forEach(w => { if (!board[w].fixed) board[w].owner = 0; });
-            db.ref('game').update({ status: { currentTeam: 1, timeLeft: 30 }, board: board });
-            isGameOver = false;
-        });
-    }
-
-    // 전체 리셋 (모든 영구 땅 삭제)
-    function fullReset() {
-        if (!confirm("모든 영구 땅 기록을 지울까요?")) return;
-        let initial = {};
-        words.forEach(w => initial[w] = { owner: 0, fixed: false });
-        db.ref('game').set({ status: { currentTeam: 1, timeLeft: 30 }, board: initial });
-    }
 </script>
 </body>
 </html>
